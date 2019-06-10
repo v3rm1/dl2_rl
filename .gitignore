@@ -1,7 +1,9 @@
 # Directories
 .vscode
 __pycache__
-
-# File Extensions
-
 .DS_Store
+.idea
+log
+
+*.pyx
+ppo_confidence/.DS_Store
