@@ -111,7 +111,7 @@ class Game:
 
 
 if __name__=="__main__":
-    env_name = "PongNoFrameskip-v4"
+    env_name = "MountainCar-v0"
     env = gym.make(env_name)
 
     num_states = env.env.observation_space.shape[0]
