@@ -1,6 +1,6 @@
 dic_agent_conf = {
     "STATE_DIM": (8, ),
-    "ACTOR_LEARNING_RATE": 1e-3,
+    "ACTOR_LEARNING_RATE": 1e-4,
     "CRITIC_LEARNING_RATE": 1e-3,
     "BATCH_SIZE": 10,
     "GAMMA": 0.99,
@@ -13,6 +13,9 @@ dic_agent_conf = {
     "CRITIC_LOSS": "mean_squared_error",
     "OPTIMIZER": "Adam",
     "TARGET_UPDATE_ALPHA": 0.9,
+    "USING_CONFIDENCE": True,
+    "MINIMUM_CONFIDENCE": 0.2,
+    "MAXIMUM_CONFIDENCE": 0.98,
 }
 
 dic_env_conf = {
@@ -28,7 +31,7 @@ dic_path ={
 }
 
 dic_exp_conf = {
-    "TRAIN_ITERATIONS": 100,
+    "TRAIN_ITERATIONS": 1000,
     "MAX_EPISODE_LENGTH": 1000,
     "TEST_ITERATIONS": 10
 }
