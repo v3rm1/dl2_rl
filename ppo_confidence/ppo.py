@@ -124,10 +124,7 @@ class Agent:
                     v = r
                 else:
                     v = v * self.dic_agent_conf["GAMMA"]
-                if i % 2 == 0:
-                    discounted_r.append(1)
-                else:
-                    discounted_r.append(-1)
+                discounted_r.append(v)
                 #print("Value: ", v)
                 #print("Predicted: ", self.get_v(self.memory.batch_s[i]))
         discounted_r.reverse()
@@ -299,11 +296,11 @@ class Agent:
         entropy_loss = self.dic_agent_conf["ENTROPY_LOSS_RATIO"]
 
         def loss(y_true, y_pred):
-            prob = y_true * y_pred + 1e-10
-            old_prob = y_true * old_prediction + 1e-10
-            r = prob / old_prob
-            return -K.mean(K.minimum(r * advantage, K.clip(r, min_value=1 - loss_clipping,
-                                                           max_value=1 + loss_clipping) * advantage) + entropy_loss * (
-                           prob * K.log(prob + 1e-10)))
+            prob = y_true * y_pred
+            old_prob = y_true * old_prediction
+            r = prob / (old_prob + 1e-10)
+            loss_e = K.mean(entropy_loss * (y_pred * K.log(y_pred)))
+            loss_p = -K.mean(K.minimum(r * advantage, K.clip(r, min_value=1 - loss_clipping, max_value=1 + loss_clipping) * advantage))
+            return K.mean(loss_e + loss_p)
 
         return loss

@@ -9,7 +9,7 @@ dic_agent_conf = {
     "D_DENSE": 64,
     "ACTOR_LOSS": "Clipped",  # or "KL-DIVERGENCE"
     "CLIPPING_LOSS_RATIO": 0.1,
-    "ENTROPY_LOSS_RATIO": 0,
+    "ENTROPY_LOSS_RATIO": 0.2,
     "CRITIC_LOSS": "mean_squared_error",
     "OPTIMIZER": "Adam",
     "TARGET_UPDATE_ALPHA": 0.9,
