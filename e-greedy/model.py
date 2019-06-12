@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 # TODO: Add method comments and verify if the neural network structure is valid
 class Model:
@@ -32,13 +33,14 @@ class Model:
         self._var_init = tf.global_variables_initializer()
 
     def predict_one(self, state, sess):
-        return sess.run(self._logits, feed_dict={self._states: state.reshape(1, self.state_count)})
+        return sess.run(self._logits, feed_dict={self._states: np.reshape(state, (1, self.state_count))})
 
     def predict_batch(self, states, sess):
         return sess.run(self._logits, feed_dict={self._states: states})
 
     def train_batch(self, sess, x_batch, y_batch):
         sess.run(self._optimizer, feed_dict={self._states: x_batch, self._q_value: y_batch})
+
     
     @property
     def state_count(self):

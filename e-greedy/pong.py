@@ -132,16 +132,16 @@ class Game:
 if __name__=="__main__":
     env_name = "PongNoFrameskip-v4"
     env = gym.make(env_name)
-
     num_states = (210*160*3)
     num_actions = env.action_space.n
 
     model = model.Model(num_states, num_actions, BATCH_SIZE)
     mem = memory.Memory(50000)
-
+    saver = tf.train.Saver()
     with tf.Session() as sess:
         sess.run(model.var_init)
         game = Game(sess, model, env, mem, MAX_EPSILON, MIN_EPSILON, LAMBDA)
+        
         num_episodes = 500
         count = 0
         while count < num_episodes:
@@ -149,6 +149,8 @@ if __name__=="__main__":
                 print('Episode {} of {}'.format(count+1, num_episodes))
             game.run()
             count += 1
+        save_path = saver.save(sess, "/tmp/model.ckpt")
+        print("Model saved in path: %s" % save_path)
         plt.plot(game.reward_store)
         plt.show()
         plt.close("all")
