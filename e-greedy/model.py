@@ -33,7 +33,7 @@ class Model:
         self._var_init = tf.global_variables_initializer()
 
     def predict_one(self, state, sess):
-        return sess.run(self._logits, feed_dict={self._states: np.reshape(state, (1, self.state_count))})
+        return sess.run(self._logits, feed_dict={self._states: np.reshape(state, (1, self._state_count))})
 
     def predict_batch(self, states, sess):
         return sess.run(self._logits, feed_dict={self._states: states})

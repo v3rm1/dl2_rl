@@ -71,7 +71,7 @@ class Game:
             state = next_state
             total_reward += reward
 
-            if done:
+            if done or state.shape != (210,160,3) :
                 self._stored_rewards.append(total_reward)
                 self._stored_max_x.append(max_x)
             
@@ -111,8 +111,8 @@ class Game:
                 current_q_value[action] = reward
             else:
                 current_q_value[action] = reward + GAMMA * np.amax(q_value_pred[i])
-                print("Q Value Predicted: ", q_value_pred[i])
-                print("Current Q Value Action: ", current_q_value[action])
+                # print("Q Value Predicted: ", q_value_pred[i])
+                # print("Current Q Value Action: ", current_q_value[action])
             
             x[i] = np.reshape(state, (1, self._model.state_count))
             y[i] = current_q_value
@@ -142,7 +142,7 @@ if __name__=="__main__":
         sess.run(model.var_init)
         game = Game(sess, model, env, mem, MAX_EPSILON, MIN_EPSILON, LAMBDA)
         
-        num_episodes = 500
+        num_episodes = 100
         count = 0
         while count < num_episodes:
             if count % 10 == 0:
@@ -151,8 +151,8 @@ if __name__=="__main__":
             count += 1
         save_path = saver.save(sess, "/tmp/model.ckpt")
         print("Model saved in path: %s" % save_path)
-        plt.plot(game.reward_store)
-        plt.show()
-        plt.close("all")
-        plt.plot(game.max_x_store)
-        plt.show()
+        # plt.plot(game.reward_store)
+        # plt.show()
+        # plt.close("all")
+        # plt.plot(game.max_x_store)
+        # plt.show()
