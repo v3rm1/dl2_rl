@@ -19,20 +19,20 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
         histogram = np.zeros(agent.n_actions)
         
         while game_not_over:
+            #env.render()
             #if cnt_episode > dic_exp_conf["TRAIN_ITERATIONS"] - 10:
                 #env.render()
 
             if dic_agent_conf["USING_CONFIDENCE"]:
                 #choose a confidence-action pair instead of just an action
                 (a, c) = agent.choose_action(s)
-                if count % 1000 == 0:
-                    print("Action: ", a)
-                    print("Conf: ", c)
-                    print("Valuation: ", agent.get_v(s))
+                #if count % 1000 == 0:
+                    #print("Action: ", a)
+                    #print("Conf: ", c)
+                    #print("Valuation: ", agent.get_v(s))
             else:
                 a = agent.choose_action(s)
                 #if count % 1000 == 0:
-                    #print("Action: ", a)
                     #print("Valuation: ", agent.get_v(s))
 
             histogram[a] += 1
@@ -54,7 +54,7 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
         print("Hist: {}".format(histogram))
         dic_agent_conf["BATCH_SIZE"] = count
         print("Episode:{}, r_sum:{}".format(cnt_episode, r_sum))
-        agent.train_network()
+        agent.train_network(cnt_episode)
     agent.save_model("savedModel")
 
 

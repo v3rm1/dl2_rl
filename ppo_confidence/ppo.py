@@ -67,6 +67,9 @@ class Agent:
         prob = self.actor_network.predict_on_batch([state, self.dummy_advantage, self.dummy_old_prediction]).flatten()
         action = np.random.choice(self.n_actions, p=prob)
         
+        #action = np.random.choice(self.n_actions)
+        #print("Prob: ", prob)
+        
         if self.dic_agent_conf["USING_CONFIDENCE"]:
             action_vector = np.zeros((1, self.n_actions))
             action_vector[0][action] = 1
@@ -89,7 +92,7 @@ class Agent:
         print("ERROR: get_reward_multiplier got an incorrect value")
         exit()
 
-    def train_network(self):
+    def train_network(self, episode):
         n = self.memory.cnt_samples
         discounted_r = []
         batch_win_lose = []
@@ -121,7 +124,12 @@ class Agent:
                     v = r
                 else:
                     v = v * self.dic_agent_conf["GAMMA"]
-                discounted_r.append(v)
+                if i % 2 == 0:
+                    discounted_r.append(1)
+                else:
+                    discounted_r.append(-1)
+                #print("Value: ", v)
+                #print("Predicted: ", self.get_v(self.memory.batch_s[i]))
         discounted_r.reverse()
         batch_win_lose.reverse()
 
@@ -131,20 +139,20 @@ class Agent:
         batch_v = self.get_v(batch_s)
         batch_advantage = batch_discounted_r - batch_v
         
-        #batch_advantage = np.full(batch_advantage.shape, -1)
-        
         batch_old_prediction = self.get_old_prediction(batch_s)
 
-        batch_a_final = np.zeros(shape=(len(batch_a), self.n_actions))
-        batch_a_final[:, batch_a.flatten()] = 1
+        batch_a_final = np.eye(self.n_actions)[self.memory.batch_a]
         
         if self.dic_agent_conf["USING_CONFIDENCE"]:
             batch_a_s = np.concatenate((batch_a_final, batch_s), axis=1)
-            self.confidence_network.fit(x=batch_a_s, y=batch_win_lose, epochs = 2, verbose=0)			
+            self.confidence_network.fit(x=batch_a_s, y=batch_win_lose, epochs = 1, verbose=0)	
+            
+        #print(batch_advantage)
         
         # print("TRAINING ACTOR NETWORK WITH THE FOLLOWING PARAMETERS:\nbatch_s:{}\nbatch_advantage:{}\nbatch_old_prediction:{}\nbatch_a_final:{}".format(batch_s.shape, batch_advantage.shape, batch_old_prediction.shape, batch_a_final.shape))
-        self.actor_network.fit(x=[batch_s, batch_advantage, batch_old_prediction], y=batch_a_final, verbose=0)
-        self.critic_network.fit(x=batch_s, y=batch_discounted_r, epochs=2, verbose=0)
+        if episode != 0:
+            self.actor_network.fit(x=[batch_s, batch_advantage, batch_old_prediction], y=batch_a_final, epochs = 1, verbose=1)
+        self.critic_network.fit(x=batch_s, y=batch_discounted_r, epochs=5, verbose=1)
         self.memory.clear()
         self.update_target_network()
 
@@ -190,7 +198,7 @@ class Agent:
         actor_network = Model(inputs=[state, advantage, old_prediction], outputs=policy)
 
         if self.dic_agent_conf["OPTIMIZER"] is "Adam":
-            actor_network.compile(optimizer=Adadelta(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]),
+            actor_network.compile(optimizer=Adam(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]),
                                   loss=self.proximal_policy_optimization_loss(
                                     advantage=advantage, old_prediction=old_prediction,
                                   ))
@@ -282,7 +290,7 @@ class Agent:
                     bias_initializer=initializers.Constant(0.1), activation="linear", name="hidden_shared_1")(state_features)
         hidden1_leaky = LeakyReLU(alpha=.1)(hidden1)
         hidden2 = Dense(dense_d, kernel_initializer=initializers.RandomNormal(stddev=0.01),
-                    bias_initializer=initializers.Constant(0.1), activation="relu", name="hidden_shared_2")(hidden1_leaky)
+                    bias_initializer=initializers.Constant(0.1), activation="linear", name="hidden_shared_2")(hidden1_leaky)
         hidden2_leaky = LeakyReLU(alpha=.1)(hidden2)
         return hidden2_leaky
 
@@ -291,11 +299,11 @@ class Agent:
         entropy_loss = self.dic_agent_conf["ENTROPY_LOSS_RATIO"]
 
         def loss(y_true, y_pred):
-            prob = y_true * y_pred
-            old_prob = y_true * old_prediction
-            r = prob / (old_prob + 1e-10)
-            return K.mean(K.minimum(r * advantage, K.clip(r, min_value=1 - loss_clipping,
-                                                           max_value=1 + loss_clipping) * advantage)) # + entropy_loss * (
-                           #prob * K.log(prob + 1e-10)))
+            prob = y_true * y_pred + 1e-10
+            old_prob = y_true * old_prediction + 1e-10
+            r = prob / old_prob
+            return -K.mean(K.minimum(r * advantage, K.clip(r, min_value=1 - loss_clipping,
+                                                           max_value=1 + loss_clipping) * advantage) + entropy_loss * (
+                           prob * K.log(prob + 1e-10)))
 
         return loss
