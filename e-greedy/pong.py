@@ -14,7 +14,6 @@ GAMMA = 0.8
 BATCH_SIZE = 50
 
 
-#TODO: Add preproc and figure out why the array sizes do not match
 class Game:
     """
     Defining a class for initializing and running the game
@@ -94,7 +93,7 @@ class Game:
     def _replay(self):
         batch = self._memory.sample(self._model.batch_size)
         states = [val[0] for val in batch]
-        next_states = [(np.zeros(self._model.num_states) if val[3] is None else val[3]) for val in batch]
+        next_states = [(np.zeros(self._model.state_count) if val[3] is None else val[3]) for val in batch]
         
         q_value = self._model.predict_batch(np.reshape(states, (len(batch), self._model.state_count)), self._sess)
         q_value_pred = self._model.predict_batch(np.reshape(next_states, (len(batch), self._model.state_count)), self._sess)
