@@ -19,7 +19,7 @@ class Game:
     """
     Defining a class for initializing and running the game
     """
-    def __init__(self, sess, model, env, memory, max_epsilon, min_epsilon, decay, render_game=False):
+    def __init__(self, sess, model, env, memory, max_epsilon, min_epsilon, decay, render_game=True):
         self._sess = sess
         self._model = model
         self._env = env
@@ -37,7 +37,8 @@ class Game:
     def run(self):
         state = self._env.reset()
         total_reward = 0
-        max_x = -100
+        max_x = np.empty(shape=(210, 160, 3), dtype=int)
+        max_x.fill(-100)
         while True:
             if self._render:
                 self._env.render()
@@ -45,28 +46,27 @@ class Game:
             action = self._choose_action(state)
             next_state, reward, done, info = self._env.step(action)
             print("Current action: {}\nCurrent Reward: {}".format(action, reward))
-            # print(next_state[0])
-            # if next_state[0] >= 0.1:
-            #     reward += 10
-            # elif next_state[0] >= 0.25:
-            #     reward += 20
-            # elif next_state[0] >= 0.5:
-            #     reward += 100
+           
+            # if next_state.all() > max_x.all():
+            #     max_x = next_state
 
-            # if next_state[0] > max_x:
-            #     max_x = next_state[0]
-            
+            for i in range(next_state.shape[0]):
+                for j in range(next_state.shape[1]):
+                    for k in range(next_state.shape[2]):
+                        if next_state[i][j][k] > max_x[i][j][k]:
+                            max_x[i][j][k] = next_state[i][j][k]
+
+
             if done:
                 next_state = None
             
             self._memory.add_sample((state, action, reward, next_state))
-            # self._replay()
+            self._replay()
 
             self._steps += 1
             self._epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA * self._steps)
             print("Updated epsilon: {}".format(self._epsilon))
-            if self._steps > 50:
-                self._replay()
+
 
             state = next_state
             total_reward += reward
@@ -74,32 +74,28 @@ class Game:
             if done or state.shape != (210,160,3) :
                 self._stored_rewards.append(total_reward)
                 self._stored_max_x.append(max_x)
+
             
             print("Step {}:\n Total Reward: {}, Epsilon: {}".format(self._steps, total_reward, self._epsilon))
             
     def _choose_action(self, state):
         i = random.random()
         print("Random.random: ", i)
-        if i > self._epsilon:
-            return random.randint(0, self._model.action_count - 1)
+        if state is not None:
+            if i < self._epsilon:
+                return random.randint(0, self._model.action_count - 1)
+            else:
+                return np.argmax(self._model.predict_one(state, self._sess))
         else:
-            return np.argmax(self._model.predict_one(state, self._sess))
+            return random.randint(0, self._model.action_count - 1)
+
         
     
     def _replay(self):
         batch = self._memory.sample(self._model.batch_size)
-        states = []
-        next_states = []
-        for i in range(self._model.batch_size):
-            states.append(batch[i][0])
-            if batch[i][3] is None:
-                next_states.append(np.zeros(self._model.state_count))
-            else:
-                next_states.append(batch[i][3])
+        states = [val[0] for val in batch]
+        next_states = [(np.zeros(self._model.num_states) if val[3] is None else val[3]) for val in batch]
         
-        # states = np.array(batch_val[0][0] for batch_val in batch)
-        # states = self._memory.sample(self._model.batch_size)[0][0]
-        # next_states = np.array([(np.zeros(self._model.state_count) if batch_val[3] is None else batch_val[3] for batch_val in batch)])
         q_value = self._model.predict_batch(np.reshape(states, (len(batch), self._model.state_count)), self._sess)
         q_value_pred = self._model.predict_batch(np.reshape(next_states, (len(batch), self._model.state_count)), self._sess)
         x = np.zeros((len(batch), self._model.state_count))
@@ -142,7 +138,7 @@ if __name__=="__main__":
         sess.run(model.var_init)
         game = Game(sess, model, env, mem, MAX_EPSILON, MIN_EPSILON, LAMBDA)
         
-        num_episodes = 100
+        num_episodes = 1000
         count = 0
         while count < num_episodes:
             if count % 10 == 0:

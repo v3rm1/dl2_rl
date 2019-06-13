@@ -23,7 +23,7 @@ class Model:
         self._define_model()
 
     def _define_model(self):
-        self._states = tf.placeholder(shape=[None, self._state_count], dtype=tf.float32)
+        self._states = tf.placeholder(shape=[None, self.state_count], dtype=tf.float32)
         self._q_value = tf.placeholder(shape=[None, self._action_count], dtype=tf.float32)
         fc1 = tf.layers.dense(self._states, 50, activation=tf.nn.relu)
         fc2 = tf.layers.dense(fc1, 50, activation=tf.nn.relu)
@@ -33,7 +33,7 @@ class Model:
         self._var_init = tf.global_variables_initializer()
 
     def predict_one(self, state, sess):
-        return sess.run(self._logits, feed_dict={self._states: np.reshape(state, (1, self._state_count))})
+        return sess.run(self._logits, feed_dict={self._states: state.reshape(1, self.state_count)})
 
     def predict_batch(self, states, sess):
         return sess.run(self._logits, feed_dict={self._states: states})
