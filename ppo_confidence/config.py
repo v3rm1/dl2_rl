@@ -1,6 +1,6 @@
 dic_agent_conf = {
     "STATE_DIM": (8, ),
-    "ACTOR_LEARNING_RATE": 5e-5,
+    "ACTOR_LEARNING_RATE": 1e-5,
     "CRITIC_LEARNING_RATE": 1e-5,
     "BATCH_SIZE": 10,
     "GAMMA": 0.99,
@@ -9,7 +9,7 @@ dic_agent_conf = {
     "D_DENSE": 64,
     "ACTOR_LOSS": "Clipped",  # or "KL-DIVERGENCE"
     "CLIPPING_LOSS_RATIO": 0.1,
-    "ENTROPY_LOSS_RATIO": 0.2,
+    "ENTROPY_LOSS_RATIO": 0.1,
     "CRITIC_LOSS": "mean_squared_error",
     "OPTIMIZER": "Adam",
     "TARGET_UPDATE_ALPHA": 0.9,

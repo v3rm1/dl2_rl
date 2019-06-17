@@ -1,13 +1,14 @@
 from keras.models import Model, model_from_json, load_model
 from keras.optimizers import Adam, RMSprop, Adadelta
 import os
-from keras.layers import Input, Dense, LeakyReLU
+from keras.layers import Input, Dense, LeakyReLU, Concatenate, concatenate
 from keras import initializers
 import keras.backend as K
 import time
 from copy import deepcopy
 import numpy as np
 import math
+import random
 
 
 class Memory:
@@ -48,12 +49,13 @@ class Agent:
 
         self.n_actions = self.dic_agent_conf["ACTION_DIM"]
 
-        self.actor_network = self._build_actor_network()
-        self.actor_old_network = self.build_network_from_copy(self.actor_network)
-
-        self.critic_network = self._build_critic_network()
+        if self.dic_agent_conf["USING_CONFIDENCE"]:
+            self.actor_network = self._build_actor_network_confidence()
+        else:
+            self.actor_network = self._build_actor_network()
         
-        self.confidence_network = self._build_confidence_network()
+        self.critic_network = self._build_critic_network()
+        self.actor_old_network = self.build_network_from_copy(self.actor_network)
 
         self.dummy_advantage = np.zeros((1, 1))
         self.dummy_old_prediction = np.zeros((1, self.n_actions))
@@ -63,35 +65,25 @@ class Agent:
     def choose_action(self, state):
         assert isinstance(state, np.ndarray), "state must be numpy.ndarry"
         state = np.reshape(state, [-1, self.dic_agent_conf["STATE_DIM"][0]])
+        output = self.actor_network.predict_on_batch([state, self.dummy_advantage, self.dummy_old_prediction]).flatten()
 
-        prob = self.actor_network.predict_on_batch([state, self.dummy_advantage, self.dummy_old_prediction]).flatten()
-        action = np.random.choice(self.n_actions, p=prob)
-        
-        #action = np.random.choice(self.n_actions)
-        #print("Prob: ", prob)
-        
         if self.dic_agent_conf["USING_CONFIDENCE"]:
-            action_vector = np.zeros((1, self.n_actions))
-            action_vector[0][action] = 1
-            action_state = np.concatenate((action_vector, state), axis = 1)
-            conf = self.confidence_network.predict_on_batch(action_state)
-			
-            return (action, conf[0][0])
+            prob = output[:-1]
+            action = np.random.choice(self.n_actions, p=prob)
+            conf = output[-1]
+            #if conf < self.dic_agent_conf["MINIMUM_CONFIDENCE"]:
+                #action = random.randint(0,self.n_actions-1)
+            return (action, conf)
         else:
+            action = np.random.choice(self.n_actions, p=output)
             return action
-            
-    def get_reward_multiplier(self, win_lose, c):
-        if c < self.dic_agent_conf["MINIMUM_CONFIDENCE"]:
-            c = self.dic_agent_conf["MINIMUM_CONFIDENCE"]
-        if c > self.dic_agent_conf["MAXIMUM_CONFIDENCE"]:
-            c = self.dic_agent_conf["MAXIMUM_CONFIDENCE"]
+    
+    def get_confidence_multiplier(self, conf, win_lose):
         if win_lose == 1:
-            return math.sqrt(c) / math.sqrt(0.5) #function normalized about confidence of 50%
+            return math.sqrt(conf)
         if win_lose == -1:
-            return (math.sqrt(c) + (math.log((1 - math.sqrt(c))/(1 + math.sqrt(c))))/2) * -1 / math.sqrt(0.5) 
-        print("ERROR: get_reward_multiplier got an incorrect value")
-        exit()
-
+            return -1*(math.sqrt(conf) + 0.5*math.log((1 - math.sqrt(conf))/(1 + math.sqrt(conf))))
+            
     def train_network(self, episode):
         n = self.memory.cnt_samples
         discounted_r = []
@@ -102,54 +94,45 @@ class Agent:
         #make sure that the last state in the game has a reward of either 1 or -1
         assert(self.memory.batch_r[-1] != 0)
         
-        if self.dic_agent_conf["USING_CONFIDENCE"]:
-            win_lose = 0
-            #loops backwards over memory
-            for i in range(len(self.memory.batch_r)-1, -1, -1):
-                r = self.memory.batch_r[i]
-                if r != 0:
-                    win_lose = r
-                    v = r
-                else:
-                    v = v * self.dic_agent_conf["GAMMA"]
-                discounted_r.append(v * self.get_reward_multiplier(win_lose, self.memory.batch_conf[i]))
-                batch_win_lose.append((win_lose+1.04)/2.08) #zero is a loss, one is a win (using soft targets here (0.02, 0.98)
-        else:
-            win_lose = 0
-            #loops backwards over memory
-            for i in range(len(self.memory.batch_r)-1, -1, -1):
-                r = self.memory.batch_r[i]
-                if r != 0:
-                    win_lose = r
-                    v = r
-                else:
-                    v = v * self.dic_agent_conf["GAMMA"]
+        win_lose = 0
+        #loops backwards over memory
+        for i in range(len(self.memory.batch_r)-1, -1, -1):
+            r = self.memory.batch_r[i]
+            if r != 0:
+                win_lose = r
+                v = r
+            else:
+                v = v * self.dic_agent_conf["GAMMA"]
+            if self.dic_agent_conf["USING_CONFIDENCE"]: 
+                discounted_r.append(v*self.get_confidence_multiplier(self.memory.batch_conf[i], win_lose))
+            else:
                 discounted_r.append(v)
-                #print("Value: ", v)
-                #print("Predicted: ", self.get_v(self.memory.batch_s[i]))
+            batch_win_lose.append([win_lose])
+
+
         discounted_r.reverse()
         batch_win_lose.reverse()
 
         batch_s, batch_a, batch_discounted_r = np.vstack(np.reshape(self.memory.batch_s, (self.dic_agent_conf["BATCH_SIZE"], self.dic_agent_conf["STATE_DIM"][0]))), \
                      np.vstack(self.memory.batch_a), \
                      np.vstack(discounted_r)
-        batch_v = self.get_v(batch_s)
-        batch_advantage = batch_discounted_r - batch_v
         
         batch_old_prediction = self.get_old_prediction(batch_s)
 
         batch_a_final = np.eye(self.n_actions)[self.memory.batch_a]
         
-        if self.dic_agent_conf["USING_CONFIDENCE"]:
-            batch_a_s = np.concatenate((batch_a_final, batch_s), axis=1)
-            self.confidence_network.fit(x=batch_a_s, y=batch_win_lose, epochs = 1, verbose=0)	
-            
-        #print(batch_advantage)
+        batch_v = self.get_v(batch_s)
+        batch_advantage = batch_discounted_r - batch_v
         
-        # print("TRAINING ACTOR NETWORK WITH THE FOLLOWING PARAMETERS:\nbatch_s:{}\nbatch_advantage:{}\nbatch_old_prediction:{}\nbatch_a_final:{}".format(batch_s.shape, batch_advantage.shape, batch_old_prediction.shape, batch_a_final.shape))
-        if episode != 0:
-            self.actor_network.fit(x=[batch_s, batch_advantage, batch_old_prediction], y=batch_a_final, epochs = 1, verbose=1)
+        if self.dic_agent_conf["USING_CONFIDENCE"]:
+            batch_old_prediction = batch_old_prediction[:,:-1]
+            output = np.concatenate((batch_a_final, batch_win_lose), axis = 1)
+        else:
+            output = batch_a_final
+        
+        self.actor_network.fit(x=[batch_s, batch_advantage, batch_old_prediction], y=output, epochs = 2, verbose=1)
         self.critic_network.fit(x=batch_s, y=batch_discounted_r, epochs=5, verbose=1)
+
         self.memory.clear()
         self.update_target_network()
 
@@ -177,6 +160,47 @@ class Agent:
         self.critic_network = load_model(self.dic_path["PATH_TO_MODEL"], "%s_critic_network.h5")
         self.actor_old_network = deepcopy(self.actor_network)
 
+    def _build_actor_network_confidence(self):
+
+        state = Input(shape=self.dic_agent_conf["STATE_DIM"], name="state")
+        # print("BUILD ACTOR NETWORK: STATE", state.shape)
+
+        advantage = Input(shape=(1, ), name="Advantage")
+        old_prediction = Input(shape=(self.n_actions,), name="Old_Prediction")
+
+        shared_hidden = self._shared_network_structure(state)
+
+        action_dim = self.dic_agent_conf["ACTION_DIM"]
+        
+        act_policy = Dense(action_dim, kernel_initializer=initializers.RandomNormal(stddev=0.01),
+                    bias_initializer=initializers.Constant(0.1), activation="softmax", name="actor_output_layer")(shared_hidden)
+                    
+        act_plus_shared = Concatenate()([act_policy, shared_hidden])
+                    
+        conf_policy = Dense(1, kernel_initializer=initializers.RandomNormal(stddev=0.01),
+                    bias_initializer=initializers.Constant(0.1), activation="sigmoid", name="confidence_output_layer")(act_plus_shared)
+        
+                    
+        policy = Concatenate()([act_policy, conf_policy])
+
+        actor_network = Model(inputs=[state, advantage, old_prediction], outputs=policy)
+
+        if self.dic_agent_conf["OPTIMIZER"] is "Adam":
+            actor_network.compile(optimizer=Adam(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]),
+                                  loss=self.confidence_loss(
+                                    advantage=advantage, old_prediction=old_prediction,
+                                  ))
+        elif self.dic_agent_conf["OPTIMIZER"] is "RMSProp":
+            actor_network.compile(optimizer=RMSprop(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]))
+        else:
+            print("Not such optimizer for actor network. Instead, we use adam optimizer")
+            actor_network.compile(optimizer=Adam(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]))
+        print("=== Build Actor Network ===")
+        actor_network.summary()
+
+        #time.sleep(1.0)
+        return actor_network
+        
     def _build_actor_network(self):
 
         state = Input(shape=self.dic_agent_conf["STATE_DIM"], name="state")
@@ -207,40 +231,13 @@ class Agent:
         print("=== Build Actor Network ===")
         actor_network.summary()
 
-        time.sleep(1.0)
+        #time.sleep(1.0)
         return actor_network
 
     def update_target_network(self):
         alpha = self.dic_agent_conf["TARGET_UPDATE_ALPHA"]
         self.actor_old_network.set_weights(alpha*np.array(self.actor_network.get_weights())
                                            + (1-alpha)*np.array(self.actor_old_network.get_weights()))
-                                        
-    def _build_confidence_network(self):
-        state_action = Input(shape= (self.dic_agent_conf["STATE_DIM"][0] + self.n_actions, ), name="state_and_action")
-		
-        shared_hidden = self._shared_network_structure(state_action)
-		
-        q = Dense(1, kernel_initializer=initializers.RandomNormal(stddev=0.01),
-                    bias_initializer=initializers.Constant(0.1), activation="sigmoid", name="confidence_output_layer")(shared_hidden)
-		
-        confidence_network = Model(inputs=state_action, outputs=q)
-		
-        if self.dic_agent_conf["OPTIMIZER"] is "Adam":
-            confidence_network.compile(optimizer=Adam(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]), 
-                                    loss=self.dic_agent_conf["CRITIC_LOSS"])
-        elif self.dic_agent_conf["OPTIMIZER"] is "RMSProp":
-            confidence_network.compile(optimizer=RMSprop(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]),
-                                    loss=self.dic_agent_conf["CRITIC_LOSS"])
-        else:
-            print("Not such optimizer for actor network. Instead, we use adam optimizer")
-            confidence_network.compile(optimizer=Adam(lr=self.dic_agent_conf["ACTOR_LEARNING_RATE"]),
-                                    loss=self.dic_agent_conf["CRITIC_LOSS"])
-                                   
-        print("=== Build Confidence Network ===")
-        confidence_network.summary()
-
-        time.sleep(1.0)
-        return confidence_network
 
     def _build_critic_network(self):
         state = Input(shape=self.dic_agent_conf["STATE_DIM"], name="state")
@@ -290,6 +287,36 @@ class Agent:
                     bias_initializer=initializers.Constant(0.1), activation="linear", name="hidden_shared_2")(hidden1_leaky)
         hidden2_leaky = LeakyReLU(alpha=.1)(hidden2)
         return hidden2_leaky
+        
+    def confidence_loss(self, advantage, old_prediction):
+        loss_clipping = self.dic_agent_conf["CLIPPING_LOSS_RATIO"]
+        entropy_loss = self.dic_agent_conf["ENTROPY_LOSS_RATIO"]
+        min_conf = self.dic_agent_conf["MINIMUM_CONFIDENCE"]
+        max_conf = self.dic_agent_conf["MAXIMUM_CONFIDENCE"]
+        
+        def loss(y_true, y_pred):
+            act_true = y_true[:,:-1]
+            act_pred = y_pred[:,:-1]
+            conf_pred = K.clip(y_pred[:,-1], min_value=min_conf, max_value=max_conf)
+            
+            win_lose = y_true[:,-1]
+            win = (win_lose+1)/2
+            lose = (1-win_lose)/2
+            
+            lose_loss = lose*(K.sqrt(conf_pred) + K.log((1-K.sqrt(conf_pred))/(1+K.sqrt(conf_pred))))
+            win_loss = win*(K.sqrt(conf_pred))
+            c_loss = -1*(lose_loss + win_loss)
+            
+            prob = act_true * act_pred
+            old_prob = act_true * old_prediction
+            r = prob / (old_prob + 1e-10)
+            loss_e = K.mean(entropy_loss * (act_pred * K.log(act_pred)))
+            loss_p = -K.mean(K.minimum(r * advantage, K.clip(r, min_value=1 - loss_clipping, max_value=1 + loss_clipping) * advantage))
+            
+            return K.mean(loss_e + loss_p + c_loss)
+        
+        return loss            
+            
 
     def proximal_policy_optimization_loss(self, advantage, old_prediction):
         loss_clipping = self.dic_agent_conf["CLIPPING_LOSS_RATIO"]
