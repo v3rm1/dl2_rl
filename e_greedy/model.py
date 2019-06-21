@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 # TODO: Add method comments and verify if the neural network structure is valid
 class Model:
@@ -24,8 +25,8 @@ class Model:
     def _define_model(self):
         self._states = tf.placeholder(shape=[None, self._state_count], dtype=tf.float32)
         self._q_value = tf.placeholder(shape=[None, self._action_count], dtype=tf.float32)
-        fc1 = tf.layers.dense(self._states, 50, activation=tf.nn.relu)
-        fc2 = tf.layers.dense(fc1, 50, activation=tf.nn.relu)
+        fc1 = tf.layers.dense(self._states, 64, activation=tf.nn.relu)
+        fc2 = tf.layers.dense(fc1, 64, activation=tf.nn.relu)
         self._logits = tf.layers.dense(fc2, self._action_count)
         loss = tf.losses.mean_squared_error(self._q_value, self._logits)
         self._optimizer = tf.train.AdamOptimizer().minimize(loss)
@@ -38,7 +39,8 @@ class Model:
         return sess.run(self._logits, feed_dict={self._states: states})
 
     def train_batch(self, sess, x_batch, y_batch):
-        sess.run(self._optimizer, feed_dict={self._states: x_batch, self._q_value: y_batch})
+        sess.run(self._optimizer, feed_dict={self._states: x_batch, self._q_value: y_batch}) 
+
     
     @property
     def state_count(self):
