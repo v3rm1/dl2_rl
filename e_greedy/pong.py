@@ -151,12 +151,12 @@ if __name__ == "__main__":
             # ex) The agent drops the pole
             
             if done:
-                
-                learn_file = "./e_greedy/memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
-                mem_df = pd.DataFrame(columns=['Episode', 'Action', 'Reward', 'Done'])
-                for i in range(0,len(curr_mem)):
-                    mem_df = mem_df.append({'Episode':e, 'Action': curr_mem[i][1], 'Reward': curr_mem[i][2], 'Done': curr_mem[i][4]}, ignore_index=True)
-                mem_df.to_csv(learn_file)
+                if e%100 == 0:
+                    learn_file = "./e_greedy/memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
+                    mem_df = pd.DataFrame(columns=['Episode', 'Action', 'Reward', 'Done'])
+                    for i in range(0,len(curr_mem)):
+                        mem_df = mem_df.append({'Episode':e, 'Action': curr_mem[i][1], 'Reward': curr_mem[i][2], 'Done': curr_mem[i][4]}, ignore_index=True)
+                    mem_df.to_csv(learn_file)
                 # print the score and break out of the loop
                 print("episode: {}/{}, score: {}"
                       .format(e, episodes, time_t))
@@ -169,9 +169,9 @@ if __name__ == "__main__":
         model_file = "./e_greedy/models/k_ep_"+str(e)+"_"+strftime("%a_%d_%b_%y__%H%M%S")+".h5"
         replay_data = "./e_greedy/replay/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
         
-
-        replay_df = pd.DataFrame(columns=['Episode', 'Epsilon', 'Target', 'Reward'])
-        for i in range(0,action_batch-1):
-            replay_df = replay_df.append({'Episode': e, 'Epsilon': curr_eps[i], 'Target': curr_target[i], 'Reward': curr_reward[i]}, ignore_index=True)
-        replay_df.to_csv(replay_data)
-        curr_model.save(model_file)
+        if e%100 == 0:
+            replay_df = pd.DataFrame(columns=['Episode', 'Epsilon', 'Target', 'Reward'])
+            for i in range(0,action_batch-1):
+                replay_df = replay_df.append({'Episode': e, 'Epsilon': curr_eps[i], 'Target': curr_target[i], 'Reward': curr_reward[i]}, ignore_index=True)
+            replay_df.to_csv(replay_data)
+            curr_model.save(model_file)
