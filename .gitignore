@@ -5,3 +5,7 @@ __pycache__
 # File Extensions
 
 .DS_Store
+e_greedy/replay/
+e_greedy/models/
+
+e_greedy/memory/
