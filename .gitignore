@@ -7,3 +7,7 @@ log
 
 *.pyx
 ppo_confidence/.DS_Store
+e_greedy/memory
+e_greedy/models
+e_greedy/replay
+e_greedy/checkpoints
