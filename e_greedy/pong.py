@@ -126,7 +126,7 @@ if __name__ == "__main__":
     prev_states = None
     print(agent.epsilon)
     # Iterate the game
-    for e in episodes:
+    for e in range(episodes):
         # reset state in the beginning of each game
         state = env.reset()
         state, prev_states = preprocess_observations(state, prev_states)
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         # the more time_t the more score
         for time_t in range(50000):
             # turn this on if you want to render
-            env.render()
+            # env.render()
             print(time_t)
             # Decide action
             action = agent.act(state)
@@ -151,7 +151,8 @@ if __name__ == "__main__":
             # ex) The agent drops the pole
             
             if done:
-                learn_file = "./memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
+                
+                learn_file = "./e_greedy/memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
                 mem_df = pd.DataFrame(columns=['Episode', 'Action', 'Reward', 'Done'])
                 for i in range(0,len(curr_mem)):
                     mem_df = mem_df.append({'Episode':e, 'Action': curr_mem[i][1], 'Reward': curr_mem[i][2], 'Done': curr_mem[i][4]}, ignore_index=True)
@@ -165,8 +166,8 @@ if __name__ == "__main__":
                 break
         # train the agent with the experience of the episode
         curr_eps, curr_target, curr_model, curr_reward = agent.replay(action_batch)
-        model_file = "./models/k_ep_"+str(e)+"_"+strftime("%a_%d_%b_%y__%H%M%S")+".h5"
-        replay_data = "./replay/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
+        model_file = "./e_greedy/models/k_ep_"+str(e)+"_"+strftime("%a_%d_%b_%y__%H%M%S")+".h5"
+        replay_data = "./e_greedy/replay/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
         
 
         replay_df = pd.DataFrame(columns=['Episode', 'Epsilon', 'Target', 'Reward'])
