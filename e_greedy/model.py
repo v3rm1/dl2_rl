@@ -4,6 +4,7 @@ import pong #our class
 import numpy as np #math
 import random #random 
 from collections import deque #queue data structure. fast appends. and pops. replay memory
+import gym
 
 
 
@@ -77,20 +78,23 @@ def trainGraph(inp, out, sess):
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
     #initialize our game
-    game = pong.PongGame()
+    # game = pong.PongGame()
+    
+
+
     
     
     #create a queue for experience replay to store policies
     D = deque()
 
     #intial frame
-    frame = game.getPresentFrame()
-    #convert rgb to gray scale for processing
-    frame = cv2.cvtColor(cv2.resize(frame, (84, 84)), cv2.COLOR_BGR2GRAY)
-    #binary colors, black or white
-    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
-    #stack frames, that is our input tensor
-    inp_t = np.stack((frame, frame, frame, frame), axis = 2)
+    # frame = game.getPresentFrame()
+    # #convert rgb to gray scale for processing
+    # frame = cv2.cvtColor(cv2.resize(frame, (84, 84)), cv2.COLOR_BGR2GRAY)
+    # #binary colors, black or white
+    # ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+    # #stack frames, that is our input tensor
+    inp_t = np.stack((init_state, init_state, init_state, init_state), axis = 2)
 
     #saver
     saver = tf.train.Saver()
