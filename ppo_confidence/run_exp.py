@@ -3,26 +3,39 @@ from ppo import Agent
 import numpy as np
 import random
 
-def grayscale(rgb):
-    gray = np.mean(rgb, -1)
-    return gray
+def downsample(state):
+    # Take only alternate pixels - basically halves the resolution of the image (which is fine for us)
+    return state[::2, ::2, :]
 
-def downscale(state):
-    #state = grayscale(state)
-    #print(state.shape)
+def remove_color(state):
+    """Convert all color (RGB is the third dimension in the image)"""
+    return state[:, :, 0]
+
+def remove_background(state):
+    state[state == 144] = 0
+    state[state == 109] = 0
     return state
+
+def preprocess_observations(state):
+    """ convert the 210x160x3 uint8 frame into a 6400 float vector """
+    processed_observation = state[35:195] # crop
+    processed_observation = downsample(processed_observation)
+    processed_observation = remove_color(processed_observation)
+    processed_observation = remove_background(processed_observation)
+    processed_observation[processed_observation != 0] = 1 
+    return processed_observation
 
 def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
     env = Env(dic_env_conf)
 
     dic_agent_conf["ACTION_DIM"] = env.action_dim
-    dic_agent_conf["STATE_DIM"] = (env.state_dim, )
+    dic_agent_conf["STATE_DIM"] = env.state_dim
 
     agent = Agent(dic_agent_conf, dic_path, dic_env_conf)
 
     for cnt_episode in range(dic_exp_conf["TRAIN_ITERATIONS"]):
         s = env.reset()
-        s = downscale(s)
+        s = preprocess_observations(s)
         r_sum = 0
         game_not_over = True
         count = 0
@@ -49,7 +62,7 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
 
             histogram[a] += 1
             s_, r, done, _ = env.step(a)
-            s_ = downscale(s_)
+            s_ = preprocess_observations(s_)
 
             r_sum += r
             if done:

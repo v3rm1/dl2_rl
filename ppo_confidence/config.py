@@ -1,5 +1,5 @@
 dic_agent_conf = {
-    "STATE_DIM": (8, ),
+    "STATE_DIM": (80, 80, 1),
     "ACTOR_LEARNING_RATE": 1e-5,
     "CRITIC_LEARNING_RATE": 1e-5,
     "BATCH_SIZE": 10,
