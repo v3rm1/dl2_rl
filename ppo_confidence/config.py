@@ -13,7 +13,7 @@ dic_agent_conf = {
     "CRITIC_LOSS": "mean_squared_error",
     "OPTIMIZER": "Adam",
     "TARGET_UPDATE_ALPHA": 0.9,
-    "USING_CONFIDENCE": False,
+    "USING_CONFIDENCE": True,
     "MINIMUM_CONFIDENCE": 0.2,
     "MAXIMUM_CONFIDENCE": 0.98,
 }

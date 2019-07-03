@@ -19,7 +19,7 @@ class Env:
 
     @property
     def state_dim(self):
-        return (480*210)
+        return (80, 80, 1)
         # return self.env.observation_space.n
 
     @property

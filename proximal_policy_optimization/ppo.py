@@ -1,12 +1,14 @@
 from keras.models import Model, model_from_json, load_model
-from keras.optimizers import Adam, RMSprop
+from keras.optimizers import Adam, RMSprop, Adadelta
 import os
-from keras.layers import Input, Dense
+from keras.layers import Input, Dense, LeakyReLU, Concatenate, concatenate, Conv2D, Flatten, MaxPool2D
+from keras import initializers
 import keras.backend as K
 import time
 from copy import deepcopy
 import numpy as np
-
+import math
+import random
 
 class Memory:
     def __init__(self):
@@ -56,7 +58,7 @@ class Agent:
     def choose_action(self, state):
         assert isinstance(state, np.ndarray), "state must be numpy.ndarry"
         # print("STATE_DIM: ", self.dic_agent_conf["STATE_DIM"])
-        state = np.reshape(state, [-1, self.dic_agent_conf["STATE_DIM"][0]])
+        state = state.reshape((-1, 80, 80, 1))
 
         prob = self.actor_network.predict_on_batch([state, self.dummy_advantage, self.dummy_old_prediction]).flatten()
         action = np.random.choice(self.n_actions, p=prob)
@@ -74,7 +76,7 @@ class Agent:
             discounted_r.append(v)
         discounted_r.reverse()
 
-        batch_s, batch_a, batch_discounted_r = np.vstack(np.reshape(self.memory.batch_s, (self.dic_agent_conf["BATCH_SIZE"], self.dic_agent_conf["STATE_DIM"][0]))), \
+        batch_s, batch_a, batch_discounted_r = np.vstack(np.reshape(self.memory.batch_s, (self.dic_agent_conf["BATCH_SIZE"], -1, 80, 80, 1))), \
                      np.vstack(self.memory.batch_a), \
                      np.vstack(discounted_r)
         batch_v = self.get_v(batch_s)
@@ -90,14 +92,14 @@ class Agent:
         self.update_target_network()
 
     def get_old_prediction(self, s):
-        s = np.reshape(s, (-1, self.dic_agent_conf["STATE_DIM"][0]))
+        s = s.reshape((-1, 80, 80, 1))
         return self.actor_old_network.predict_on_batch(s)
 
     def store_transition(self, s, a, s_, r, done):
         self.memory.store(s, a, s_, r, done)
 
     def get_v(self, s):
-        s = np.reshape(s, (-1, self.dic_agent_conf["STATE_DIM"][0]))
+        s = s.reshape((-1, 80, 80, 1))
         v = self.critic_network.predict_on_batch(s)
         return v
 
@@ -186,9 +188,18 @@ class Agent:
 
     def _shared_network_structure(self, state_features):
         dense_d = self.dic_agent_conf["D_DENSE"]
-        hidden1 = Dense(dense_d, activation="relu", name="hidden_shared_1")(state_features)
-        hidden2 = Dense(dense_d, activation="relu", name="hidden_shared_2")(hidden1)
-        return hidden2
+        conv1 = Conv2D(16, kernel_size=2, name="conv_shared_1", input_shape=(80, 80, 1))(state_features)
+        conv1_leaky = LeakyReLU(alpha=0.1)(conv1)
+        conv2 = Conv2D(32, kernel_size=2, name="conv_shared_2")(conv1_leaky)
+        conv2_leaky = LeakyReLU(alpha=0.1)(conv2)
+        flatten1 = Flatten()(conv2_leaky)
+        hidden1 = Dense(dense_d, kernel_initializer=initializers.RandomNormal(stddev=0.01),
+                    bias_initializer=initializers.Constant(0.1), activation="linear", name="hidden_shared_1")(flatten1)
+        hidden1_leaky = LeakyReLU(alpha=.1)(hidden1)
+        hidden2 = Dense(dense_d, kernel_initializer=initializers.RandomNormal(stddev=0.01),
+                    bias_initializer=initializers.Constant(0.1), activation="linear", name="hidden_shared_2")(hidden1_leaky)
+        hidden2_leaky = LeakyReLU(alpha=.1)(hidden2)
+        return hidden2_leaky
 
     def proximal_policy_optimization_loss(self, advantage, old_prediction):
         loss_clipping = self.dic_agent_conf["CLIPPING_LOSS_RATIO"]
