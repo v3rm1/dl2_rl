@@ -51,7 +51,7 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
                 #choose a confidence-action pair instead of just an action
                 (a, c) = agent.choose_action(s)
                 if count % 1000 == 0:
-                    state = np.reshape(s, [-1, agent.dic_agent_conf["STATE_DIM"][0]])
+                    state = s.reshape((-1, 80, 80, 1))
                     print("A_dist: {}".format(agent.actor_network.predict_on_batch([state, agent.dummy_advantage, agent.dummy_old_prediction]).flatten()[:-1]))
                     print("Conf: ", c)
                     print("Valuation: ", agent.get_v(s))
