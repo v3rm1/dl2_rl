@@ -151,12 +151,12 @@ class Agent:
         return v
 
     def save_model(self, file_name):
-        self.actor_network.save(os.path.join(self.dic_path["PATH_TO_MODEL"], "%s_actor_network.h5" % file_name))
-        self.critic_network.save(os.path.join(self.dic_path["PATH_TO_MODEL"], "%s_critic_network.h5" % file_name))
+        self.actor_network.save(os.path.join("./models/%s_actor_network.h5" % file_name))
+        self.critic_network.save(os.path.join("./models/%s_critic_network.h5" % file_name))
 
     def load_model(self):
-        self.actor_network = load_model(self.dic_path["PATH_TO_MODEL"], "%s_actor_network.h5")
-        self.critic_network = load_model(self.dic_path["PATH_TO_MODEL"], "%s_critic_network.h5")
+        self.actor_network = load_model("./models/%s_actor_network.h5")
+        self.critic_network = load_model("./models/%s_critic_network.h5")
         self.actor_old_network = deepcopy(self.actor_network)
 
     def _build_actor_network_confidence(self):
