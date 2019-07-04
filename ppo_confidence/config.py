@@ -27,7 +27,8 @@ dic_env_conf = {
 }
 
 dic_path ={
-    "PPO": "records/PPO/"
+    "PPO": "records/PPO/",
+    "PATH_TO_MODEL": "./models/"
 }
 
 dic_exp_conf = {
