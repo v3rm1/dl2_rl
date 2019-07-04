@@ -37,28 +37,50 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
         s = env.reset()
         s = preprocess_observations(s)
         r_sum = 0
-        for cnt_step in range(dic_exp_conf["MAX_EPISODE_LENGTH"]):
-            if cnt_episode > dic_exp_conf["TRAIN_ITERATIONS"] - 10:
-                env.render()
+        game_not_over = True
+        count = 0
+        
+        histogram = np.zeros(agent.n_actions)
+        
+        while game_not_over:
+            #env.render()
+            #if cnt_episode > dic_exp_conf["TRAIN_ITERATIONS"] - 10:
+                #env.render()
 
-            a = agent.choose_action(s)
-            print(a)
+            if dic_agent_conf["USING_CONFIDENCE"]:
+                #choose a confidence-action pair instead of just an action
+                (a, c) = agent.choose_action(s)
+                if count % 1000 == 0:
+                    state = s.reshape((-1, 80, 80, 1))
+                    print("A_dist: {}".format(agent.actor_network.predict_on_batch([state, agent.dummy_advantage, agent.dummy_old_prediction]).flatten()[:-1]))
+                    print("Conf: ", c)
+                    print("Valuation: ", agent.get_v(s))
+            else:
+                a = agent.choose_action(s)
+                if count % 1000 == 0:
+                    print("Valuation: ", agent.get_v(s))
+
+            histogram[a] += 1
             s_, r, done, _ = env.step(a)
             s_ = preprocess_observations(s_)
-            r /= 100
+
             r_sum += r
             if done:
-                r = -1
+                game_not_over = False
 
-            agent.store_transition(s, a, s_, r, done)
-            if (cnt_step+1) % dic_agent_conf["BATCH_SIZE"] == 0 and cnt_step != 0:
-                agent.train_network()
+            if dic_agent_conf["USING_CONFIDENCE"]:
+                agent.store_transition(s, a, s_, r, done, c)
+            else:
+                agent.store_transition(s, a, s_, r, done)
             s = s_
-
-            if done:
-                break
-
-            if cnt_step % 10 == 0:
-                print("Episode:{}, step:{}, r_sum:{}".format(cnt_episode, cnt_step, r_sum))
+            
+            count = count + 1
+        
+        histogram = [int(h) for h in histogram]
+        print("Hist: {}".format(histogram))
+        dic_agent_conf["BATCH_SIZE"] = count
+        print("Episode:{}, r_sum:{}".format(cnt_episode, r_sum))
+        agent.train_network(cnt_episode)
+    agent.save_model("savedModel"+str(count))
 
 

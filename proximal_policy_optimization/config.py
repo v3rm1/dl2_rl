@@ -13,6 +13,9 @@ dic_agent_conf = {
     "CRITIC_LOSS": "mean_squared_error",
     "OPTIMIZER": "Adam",
     "TARGET_UPDATE_ALPHA": 0.9,
+    "USING_CONFIDENCE": False,
+    "MINIMUM_CONFIDENCE": 0.2,
+    "MAXIMUM_CONFIDENCE": 0.98,
 }
 
 dic_env_conf = {
@@ -24,7 +27,8 @@ dic_env_conf = {
 }
 
 dic_path ={
-    "PPO": "records/PPO/"
+    "PPO": "records/PPO/",
+    "PATH_TO_MODEL": "./models/"
 }
 
 dic_exp_conf = {

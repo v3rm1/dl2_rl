@@ -81,6 +81,6 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
         dic_agent_conf["BATCH_SIZE"] = count
         print("Episode:{}, r_sum:{}".format(cnt_episode, r_sum))
         agent.train_network(cnt_episode)
-    agent.save_model("savedModel")
+    agent.save_model("savedModel"+str(count))
 
 
