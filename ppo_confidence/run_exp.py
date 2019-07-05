@@ -43,7 +43,7 @@ def main(dic_agent_conf, dic_env_conf, dic_exp_conf, dic_path):
         histogram = np.zeros(agent.n_actions)
         
         while game_not_over:
-            #env.render()
+            env.render()
             #if cnt_episode > dic_exp_conf["TRAIN_ITERATIONS"] - 10:
                 #env.render()
 
