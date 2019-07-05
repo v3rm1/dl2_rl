@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # the more time_t the more score
         for time_t in range(50000):
             # turn this on if you want to render
-            # env.render()
+            env.render()
             print(time_t)
             # Decide action
             action = agent.act(state)
