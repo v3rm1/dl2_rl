@@ -3,11 +3,16 @@
 __pycache__
 .DS_Store
 .idea
-log
+logs
 
 *.pyx
 ppo_confidence/.DS_Store
-e_greedy/memory
-e_greedy/models
-e_greedy/replay
+!e_greedy/memory
+!e_greedy/models
+!e_greedy/replay
 e_greedy/checkpoints
+conf_action_plot.txt
+conf_plot.txt
+conf_slurm-6486322.out
+ppo_slurm-6486332.out
+

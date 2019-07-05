@@ -2,6 +2,7 @@ import gym
 from keras import Sequential
 from keras.layers import Conv2D, MaxPool2D, Flatten, Dropout, Dense, LeakyReLU
 from keras.losses import categorical_crossentropy
+from keras.callbacks import TensorBoard
 from keras.optimizers import Adadelta
 from collections import deque
 import numpy as np
@@ -10,13 +11,13 @@ from time import strftime
 import pandas as pd
 
 
-episodes = 500000
+episodes = 5000
 # Deep Q-learning Agent
 class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = deque(maxlen=5000)
+        self.memory = deque(maxlen=100)
         self.gamma = 0.95    # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.1
@@ -57,6 +58,7 @@ class DQNAgent:
             return 3
     
     def replay(self, batch_size):
+        tb = TensorBoard(log_dir="./logs", batch_size=100, write_graph=True, update_freq='epoch')
         ret_eps = []
         ret_target = []
         ret_reward = []
@@ -70,7 +72,7 @@ class DQNAgent:
                        np.amax(self.model.predict(next_state))
             target_f = self.model.predict(state)
             target_f[0][action] = target
-            self.model.fit(state, target_f, epochs=1, verbose=0)
+            self.model.fit(state, target_f, epochs=1, verbose=0, callbacks=[tb])
             ret_eps.append(self.epsilon)
             ret_target.append(target)
             ret_reward.append(reward)
@@ -113,7 +115,7 @@ def preprocess_observations(input_observation, prev_processed_observation, input
     return input_observation, prev_processed_observations
 
 if __name__ == "__main__":
-    action_batch = 1000
+    action_batch = 100
     
     # initialize gym environment and the agent
     curr_eps = []
@@ -152,7 +154,7 @@ if __name__ == "__main__":
             
             if done:
                 if e%100 == 0:
-                    learn_file = "./e_greedy/memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
+                    learn_file = "./memory/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
                     mem_df = pd.DataFrame(columns=['Episode', 'Action', 'Reward', 'Done'])
                     for i in range(0,len(curr_mem)):
                         mem_df = mem_df.append({'Episode':e, 'Action': curr_mem[i][1], 'Reward': curr_mem[i][2], 'Done': curr_mem[i][4]}, ignore_index=True)
@@ -166,8 +168,8 @@ if __name__ == "__main__":
                 break
         # train the agent with the experience of the episode
         curr_eps, curr_target, curr_model, curr_reward = agent.replay(action_batch)
-        model_file = "./e_greedy/models/k_ep_"+str(e)+"_"+strftime("%a_%d_%b_%y__%H%M%S")+".h5"
-        replay_data = "./e_greedy/replay/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
+        model_file = "./models/k_ep_"+str(e)+"_"+strftime("%a_%d_%b_%y__%H%M%S")+".h5"
+        replay_data = "./replay/episode_"+str(e)+ "_"+strftime("%a_%d_%b_%y__%H%M%S")+".csv"
         
         if e%100 == 0:
             replay_df = pd.DataFrame(columns=['Episode', 'Epsilon', 'Target', 'Reward'])
